@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VILLAGE OF THE UNDEAD</title>
+  <style>
+    :root {
+      --bg: #070d13;
+      --panel: rgba(11, 17, 22, 0.8);
+      --panel-strong: rgba(11, 17, 22, 0.96);
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #edf6ff;
+      --muted: rgba(237,246,255,0.78);
+      --primary: #1b8cff;
+      --danger: #e24d4d;
+      --success: #69d989;
+      --warning: #f1d15e;
+      --armor: #6fd1ff;
+      --stamina: #97d96c;
+    }
+
+    * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; }
+    html, body {
+      margin:0; width:100%; height:100%; overflow:hidden;
+      background: var(--bg); color:var(--text); font-family:Arial,Helvetica,sans-serif;
+    }
+
+    body {
+      position: relative;
+    }
+
+    canvas {
+      display:block; width:100vw; height:100vh; background: radial-gradient(circle at 50% 20%, #0d1530 0%, #050b12 42%, #02070c 100%);
+    }
+
+    .ui {
+      position:absolute; inset:0; pointer-events:none; z-index:20;
+    }
+
+    .overlay {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      background: rgba(4, 8, 12, 0.62); backdrop-filter: blur(2px);
+      z-index:30;
+    }
+    .overlay.hidden { display:none; }
+    .panel {
+      width:min(760px, 88vw); border-radius:18px; background: rgba(8, 14, 18, 0.9);
+      border:1px solid var(--line); box-shadow:0 18px 50px rgba(0,0,0,0.5); padding:24px 22px;
+    }
+    .panel h1, .panel h2, .panel p { margin:0; }
+    .menu-panel { text-align:center; }
+    .title {
+      font-size: clamp(30px, 5vw, 58px); letter-spacing:0.14em; font-weight: 800; margin-bottom:12px;
+      text-shadow: 0 0 24px rgba(127, 190, 255, 0.4);
+    }
+    .subtitle { opacity:0.8; font-size:18px; margin-bottom:26px; }
+    .menu-buttons {
+      display:flex; gap:12px; flex-wrap:wrap; justify-content:center;
+    }
+    button {
+      pointer-events:auto; border:none; border-radius:12px; background: linear-gradient(180deg, #1c90ff, #1159c8);
+      color:white; font-weight:700; padding:14px 24px; min-width:150px; cursor:pointer; box-shadow:0 8px 20px rgba(0,110,255,0.35);
+    }
+    button:active { transform:translateY(1px) scale(0.99); }
+    button.mini { min-width:unset; padding:10px 14px; font-size:13px; }
+    .character-grid {
+      display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px; max-height:64vh; overflow:auto; padding-right:4px;
+    }
+    .character-card {
+      background: rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; transition:0.2s ease;
+    }
+    .character-card.selected { border-color: rgba(120, 205, 255, 0.9); box-shadow: 0 0 30px rgba(74,175,255,0.2); }
+    .character-card.locked { opacity:0.5; }
+    .hero-sigil {
+      width:54px; height:54px; margin:0 auto 8px auto; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background: linear-gradient(180deg, #2c74ff, #112e60); font-size:28px; box-shadow: inset 0 0 12px rgba(255,255,255,0.2);
+    }
+    .character-card h3 { margin:8px 0; }
+    .ability { font-size:13px; opacity:0.8; }
+    .unlock { font-size:12px; opacity:0.7; margin-top:8px; }
+    .panel-header {
+      display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;
+    }
+    .tutorial-box ul { margin:16px 0 20px 18px; line-height:1.8; font-size:18px; }
+    .stats-text { font-size:16px; margin-top:16px; opacity:0.9; }
+
+    #hud {
+      position:absolute; inset:0; z-index:10; pointer-events:none;
+    }
+    .topbar {
+      position:absolute; top:14px; left:18px; right:18px; display:flex; gap:12px; align-items:flex-start;
+    }
+    .status-box {
+      background: rgba(12,18,24,0.7); border:1px solid var(--line); border-radius:12px; padding:8px 12px;
+      min-width:110px; display:flex; flex-direction:column; justify-content:center;
+    }
+    .status-box.big { flex:1; }
+    .label { font-size:11px; letter-spacing:0.12em; opacity:0.7; }
+    .value { font-size:22px; font-weight:700; }
+    .bars {
+      position:absolute; top:92px; left:18px; width:min(540px, 48vw); display:flex; flex-direction:column; gap:8px;
+    }
+    .bar-group { display:flex; flex-direction:column; gap:6px; }
+    .bar-shell {
+      width:100%; height:16px; background: rgba(255,255,255,0.08); border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,0.08);
+    }
+    .bar { height:100%; width:100%; border-radius:999px; transition: width 0.2s ease; }
+    .health { background: linear-gradient(90deg, #d94444, #ff8b8b); }
+    .armor { background: linear-gradient(90deg, #58b9ff, #91e1ff); }
+    .stamina { background: linear-gradient(90deg, #97d85a, #d9ff87); }
+    .bar-label { font-size:11px; letter-spacing:0.15em; opacity:0.8; }
+    .mission-box {
+      position:absolute; right:18px; top:94px; width:min(350px, 36vw); background: rgba(12,18,24,0.72);
+      border:1px solid var(--line); border-radius:14px; padding:12px 14px; display:grid; gap:7px; font-size:14px;
+    }
+    #crosshair {
+      position:absolute; left:50%; top:50%; width:18px; height:18px; transform:translate(-50%,-50%); border-radius:50%; border:1px solid rgba(255,255,255,0.8);
+      opacity:0.8;
+    }
+    #crosshair::before, #crosshair::after {
+      content:""; position:absolute; background: rgba(255,255,255,0.8); left:50%; top:50%; transform:translate(-50%,-50%);
+    }
+    #crosshair::before { width:1px; height:22px; }
+    #crosshair::after { width:22px; height:1px; }
+
+    .touch-controls {
+      position:absolute; inset:0; z-index:25; pointer-events:none;
+    }
+    .joystick-base {
+      position:absolute; left:28px; bottom:30px; width:150px; height:150px; border-radius:50%; background:rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.18);
+      box-shadow: inset 0 0 24px rgba(255,255,255,0.06); pointer-events:auto;
+    }
+    .joystick-stick {
+      position:absolute; left:50%; top:50%; width:54px; height:54px; border-radius:50%; background: rgba(255,255,255,0.18); border:2px solid rgba(255,255,255,0.25);
+      transform:translate(-50%,-50%);
+    }
+    .right-controls {
+      position:absolute; right:24px; bottom:30px; display:grid; grid-template-columns: repeat(2, 90px); gap:10px; pointer-events:auto;
+    }
+    .action-button {
+      width:90px; height:56px; border-radius:16px; background: rgba(28, 34, 42, 0.78); border:1px solid rgba(255,255,255,0.14); color: white; font-size:11px; letter-spacing:0.12em; padding:0; min-width:0; box-shadow:none;
+    }
+    .action-button.fire { background: linear-gradient(180deg, #ef6d52, #b92f19); }
+    .interaction {
+      position:absolute; left:50%; top:68%; transform:translate(-50%,-50%); background: rgba(10,15,20,0.75); border:1px solid var(--line); border-radius:12px; padding:10px 18px; font-size:14px; font-weight:700; letter-spacing:0.12em; z-index:30;
+    }
+    .hidden { display:none !important; }
+
+    @media (max-width: 900px) {
+      .topbar { gap:8px; }
+      .status-box { min-width: 80px; }
+      .value { font-size:18px; }
+      .mission-box { width:min(300px, 38vw); font-size:12px; }
+      .joystick-base { width:120px; height:120px; }
+      .right-controls { grid-template-columns: repeat(2, 80px); gap:8px; }
+      .action-button { width:80px; height:52px; font-size:10px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="menuScreen" class="overlay">
+    <div class="panel menu-panel">
+      <h1 class="title">VILLAGE OF THE UNDEAD</h1>
+      <p class="subtitle">Survive the dark village. Find the key. Escape alive.</p>
+      <div class="menu-buttons">
+        <button id="startBtn">NEW GAME</button>
+        <button id="continueBtn">CONTINUE</button>
+        <button id="charsBtn">CHARACTERS</button>
+        <button id="tutorialBtn">TUTORIAL</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="charScreen" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Character Select</h2>
+        <button class="mini" id="closeCharsBtn">Back</button>
+      </div>
+      <div id="characterGrid" class="character-grid"></div>
+    </div>
+  </div>
+
+  <div id="tutorialScreen" class="overlay hidden">
+    <div class="panel tutorial-box">
+      <h2>Mission Briefing</h2>
+      <ul>
+        <li>Use the left joystick to move.</li>
+        <li>Tap FIRE to shoot and RELOAD when mag is empty.</li>
+        <li>Search the village to find the randomly placed key.</li>
+        <li>Complete the level objective and reach the exit.</li>
+        <li>Unlock the gate and escape to survive the night.</li>
+      </ul>
+      <button id="closeTutorialBtn">Continue</button>
+    </div>
+  </div>
+
+  <div id="gameOverScreen" class="overlay hidden">
+    <div class="panel">
+      <h1>YOU DIED</h1>
+      <p id="gameOverStats" class="stats-text">Level 1 | Zombies 0 | XP 0</p>
+      <div class="menu-buttons" style="margin-top:18px;">
+        <button id="retryBtn">RETRY</button>
+        <button id="mainMenuBtn">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="victoryScreen" class="overlay hidden">
+    <div class="panel">
+      <h1>LEVEL COMPLETE</h1>
+      <p id="victoryStats" class="stats-text">Objectives cleared</p>
+      <div class="menu-buttons" style="margin-top:18px;">
+        <button id="nextLevelBtn">NEXT LEVEL</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="topbar">
+      <div class="status-box">
+        <span class="label">LEVEL</span>
+        <span id="levelText" class="value">01</span>
+      </div>
+      <div class="status-box">
+        <span class="label">XP</span>
+        <span id="xpText" class="value">0</span>
+      </div>
+      <div class="status-box big">
+        <span class="label">OBJECTIVE</span>
+        <span id="objectiveText" class="value" style="font-size:18px;">Eliminate infected</span>
+      </div>
+    </div>
+
+    <div class="bars">
+      <div class="bar-group">
+        <div class="bar-label">HEALTH</div>
+        <div class="bar-shell"><div id="healthBar" class="bar health" style="width:100%"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-label">ARMOR</div>
+        <div class="bar-shell"><div id="armorBar" class="bar armor" style="width:100%"></div></div>
+      </div>
+      <div class="bar-group" style="width:52%;">
+        <div class="bar-label">STAMINA</div>
+        <div class="bar-shell"><div id="staminaBar" class="bar stamina" style="width:100%"></div></div>
+      </div>
+    </div>
+
+    <div class="mission-box">
+      <div><strong>KEY:</strong> <span id="keyStatus">NOT FOUND</span></div>
+      <div><strong>EXIT:</strong> <span id="exitStatus">LOCKED</span></div>
+      <div><strong>AMMO:</strong> <span id="ammoStatus">12 / 48</span></div>
+      <div><strong>POWER:</strong> <span id="powerStatus">READY</span></div>
+    </div>
+
+    <div id="crosshair"></div>
+  </div>
+
+  <div id="interactionPrompt" class="interaction hidden">INTERACT</div>
+
+  <div class="touch-controls">
+    <div id="joystickBase" class="joystick-base">
+      <div id="joystickStick" class="joystick-stick"></div>
+    </div>
+    <div class="right-controls">
+      <button id="fireBtn" class="action-button fire">FIRE</button>
+      <button id="aimBtn" class="action-button">AIM</button>
+      <button id="reloadBtn" class="action-button">RELOAD</button>
+      <button id="jumpBtn" class="action-button">JUMP</button>
+      <button id="crouchBtn" class="action-button">CROUCH</button>
+      <button id="interactBtn" class="action-button">INTERACT</button>
+      <button id="powerBtn" class="action-button">POWER</button>
+      <button id="switchBtn" class="action-button">SWITCH</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      const startBtn = document.getElementById('startBtn');
+      const continueBtn = document.getElementById('continueBtn');
+      const charsBtn = document.getElementById('charsBtn');
+      const tutorialBtn = document.getElementById('tutorialBtn');
+      const closeCharsBtn = document.getElementById('closeCharsBtn');
+      const closeTutorialBtn = document.getElementById('closeTutorialBtn');
+      const retryBtn = document.getElementById('retryBtn');
+      const mainMenuBtn = document.getElementById('mainMenuBtn');
+      const nextLevelBtn = document.getElementById('nextLevelBtn');
+      const menuScreen = document.getElementById('menuScreen');
+      const charScreen = document.getElementById('charScreen');
+      const tutorialScreen = document.getElementById('tutorialScreen');
+      const gameOverScreen = document.getElementById('gameOverScreen');
+      const victoryScreen = document.getElementById('victoryScreen');
+      const hud = document.getElementById('hud');
+      const interactionPrompt = document.getElementById('interactionPrompt');
+      const levelText = document.getElementById('levelText');
+      const xpText = document.getElementById('xpText');
+      const objectiveText = document.getElementById('objectiveText');
+      const healthBar = document.getElementById('healthBar');
+      const armorBar = document.getElementById('armorBar');
+      const staminaBar = document.getElementById('staminaBar');
+      const keyStatus = document.getElementById('keyStatus');
+      const exitStatus = document.getElementById('exitStatus');
+      const ammoStatus = document.getElementById('ammoStatus');
+      const powerStatus = document.getElementById('powerStatus');
+      const gameOverStats = document.getElementById('gameOverStats');
+      const victoryStats = document.getElementById('victoryStats');
+      const characterGrid = document.getElementById('characterGrid');
+      const joystickBase = document.getElementById('joystickBase');
+      const joystickStick = document.getElementById('joystickStick');
+
+      const weaponDefs = [
+        { name: 'Pistol', damage: 18, bullets: 12, ammo: 48, fireRate: 0.32, range: 420, spread: 0.08, reload: 1.2 },
+        { name: 'Shotgun', damage: 18, bullets: 8, ammo: 28, fireRate: 0.8, range: 220, spread: 0.22, reload: 1.8 },
+        { name: 'SMG', damage: 12, bullets: 28, ammo: 82, fireRate: 0.12, range: 330, spread: 0.12, reload: 1.5 },
+        { name: 'Rifle', damage: 24, bullets: 20, ammo: 70, fireRate: 0.18, range: 460, spread: 0.06, reload: 1.7 },
+      ];
+
+      const characters = [
+        { id: 'survivor', name: 'The Survivor', icon: 'S', unlockLevel: 1, description: 'Balanced stats', bonus: { health: 0, damage: 0, speed: 0, reload: 0 } },
+        { id: 'medic', name: 'The Medic', icon: 'M', unlockLevel: 10, description: 'Regenerates health faster', bonus: { health: 12, damage: 0, speed: 0, reload: 0 } },
+        { id: 'hunter', name: 'The Hunter', icon: 'H', unlockLevel: 20, description: 'Improved accuracy and detection', bonus: { health: 0, damage: 6, speed: 0, reload: -0.1 } },
+        { id: 'guardian', name: 'The Guardian', icon: 'G', unlockLevel: 30, description: 'Temporary protective shield', bonus: { health: 18, damage: 0, speed: 0, reload: 0 } },
+        { id: 'runner', name: 'The Runner', icon: 'R', unlockLevel: 40, description: 'Increased movement speed', bonus: { health: 0, damage: 0, speed: 0.12, reload: 0 } },
+        { id: 'engineer', name: 'The Engineer', icon: 'E', unlockLevel: 50, description: 'Faster reload and interaction', bonus: { health: 0, damage: 0, speed: 0, reload: -0.2 } },
+        { id: 'shadow', name: 'The Shadow', icon: 'S', unlockLevel: 60, description: 'Reduced enemy detection', bonus: { health: 0, damage: 0, speed: 0.08, reload: 0 } },
+        { id: 'warrior', name: 'The Warrior', icon: 'W', unlockLevel: 75, description: 'Increased weapon damage', bonus: { health: 10, damage: 12, speed: 0, reload: 0 } }
+      ];
+
+      const state = {
+        running: false,
+        world: { width: 2000, height: 1800 },
+        player: null,
+        camera: { x: 0, y: 0, zoom: 1 },
+        zombies: [],
+        bullets: [],
+        particles: [],
+        obstacles: [],
+        items: [],
+        mission: null,
+        currentLevel: 1,
+        xp: 0,
+        unlockedChars: ['survivor'],
+        selectedChar: 'survivor',
+        levelStats: { kills: 0 },
+        keyFound: false,
+        levelComplete: false,
+        gameOver: false,
+        lastTime: 0,
+        saveKey: 'villageUndeadSave',
+        keyLocation: null,
+        exit: { x: 1680, y: 1600, radius: 55, locked: true },
+        objectiveType: 'eliminate',
+        enemyGoal: 0,
+        nearInteractable: null,
+        joystick: { active: false, x: 0, y: 0, cx: 0, cy: 0 },
+        input: {
+          forward: false, backward: false, left: false, right: false, aim: false, fireHeld: false
+        },
+        touch: { pointerId: null },
+      };
+
+      function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+      }
+
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function dist(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      function loadSave() {
+        try {
+          const data = JSON.parse(localStorage.getItem(state.saveKey) || '{}');
+          if (data.xp !== undefined) state.xp = data.xp || 0;
+          if (data.unlockedChars) state.unlockedChars = data.unlockedChars || ['survivor'];
+          if (data.selectedChar) state.selectedChar = data.selectedChar || 'survivor';
+          if (data.currentLevel) state.currentLevel = data.currentLevel || 1;
+        } catch (e) {}
+      }
+
+      function saveGame() {
+        localStorage.setItem(state.saveKey, JSON.stringify({
+          xp: state.xp,
+          unlockedChars: state.unlockedChars,
+          selectedChar: state.selectedChar,
+          currentLevel: state.currentLevel,
+        }));
+      }
+
+      function buildCharacterGrid() {
+        characterGrid.innerHTML = '';
+        characters.forEach(char => {
+          const unlocked = state.unlockedChars.includes(char.id) || state.xp >= (char.unlockLevel * 20);
+          const card = document.createElement('div');
+          card.className = 'character-card' + (state.selectedChar === char.id ? ' selected' : '') + (unlocked ? '' : ' locked');
+          card.innerHTML = `
+            <div class="hero-sigil">${char.icon}</div>
+            <h3>${char.name}</h3>
+            <div class="ability">${char.description}</div>
+            <div class="unlock">Unlock: Level ${char.unlockLevel}</div>
+            <div style="margin-top:10px;">
+              <button class="mini" data-char="${char.id}" ${unlocked ? '' : 'disabled'}>${unlocked ? 'SELECT' : 'LOCKED'}</button>
+            </div>
+          `;
+          card.querySelector('button').addEventListener('click', () => {
+            if (state.unlockedChars.includes(char.id) || state.xp >= (char.unlockLevel * 20)) {
+              state.selectedChar = char.id;
+              saveGame();
+              buildCharacterGrid();
+            }
+          });
+          characterGrid.appendChild(card);
+        });
+      }
+
+      function getSelectedCharData() {
+        return characters.find(c => c.id === state.selectedChar) || characters[0];
+      }
+
+      function createPlayer() {
+        const char = getSelectedCharData();
+        const base = {
+          x: 630,
+          y: 1040,
+          radius: 22,
+          health: 100,
+          maxHealth: 100,
+          armor: 60,
+          maxArmor: 60,
+          stamina: 100,
+          maxStamina: 100,
+          facing: 0,
+          speed: 220,
+          aimDir: 0,
+          weaponIndex: 0,
+          fireCooldown: 0,
+          reloadTimer: 0,
+          invuln: 0,
+          level: 1,
+          weaponAmmo: [12, 8, 28, 20],
+          reserveAmmo: [48, 28, 82, 70],
+          damageBoost: char.bonus.damage || 0,
+          healthBonus: char.bonus.health || 0,
+          speedBonus: char.bonus.speed || 0,
+          reloadBonus: char.bonus.reload || 0,
+          abilityCharge: 0,
+          keyCount: 0,
+          alive: true,
+          powerReady: true,
+          kills: 0,
+          xp: 0,
+        };
+        base.maxHealth += char.bonus.health || 0;
+        base.health = base.maxHealth;
+        base.speed += base.speedBonus * 180;
+        return base;
+      }
+
+      function createDynamicLevel(levelNum) {
+        const seed = levelNum;
+        state.currentLevel = levelNum;
+        state.levelStats.kills = 0;
+        state.keyFound = false;
+        state.levelComplete = false;
+        state.gameOver = false;
+        state.objectiveType = 'eliminate';
+        state.exit.locked = true;
+        state.enemyGoal = 5 + Math.floor(levelNum * 1.8);
+
+        const positions = [
+          { x: 520, y: 470 }, { x: 760, y: 520 }, { x: 960, y: 590 }, { x: 1260, y: 750 },
+          { x: 450, y: 980 }, { x: 820, y: 1030 }, { x: 980, y: 1180 }, { x: 1390, y: 940 },
+          { x: 1320, y: 1410 }, { x: 760, y: 1480 }, { x: 440, y: 1600 },
+        ];
+        const keySlots = [
+          { x: 420, y: 500 }, { x: 1000, y: 620 }, { x: 1290, y: 920 }, { x: 760, y: 1400 },
+          { x: 440, y: 1500 }, { x: 1560, y: 1180 }, { x: 1120, y: 1500 }, { x: 860, y: 980 }
+        ];
+
+        state.keyLocation = keySlots[(levelNum * 7 + 2) % keySlots.length];
+        state.exit.x = 1680 + ((levelNum * 17) % 80);
+        state.exit.y = 1600 - ((levelNum * 9) % 60);
+
+        state.obstacles = [
+          { x: 300, y: 280, w: 240, h: 130, type: 'house' },
+          { x: 610, y: 300, w: 200, h: 140, type: 'house' },
+          { x: 1010, y: 360, w: 260, h: 150, type: 'church' },
+          { x: 1320, y: 250, w: 240, h: 120, type: 'barn' },
+          { x: 300, y: 700, w: 220, h: 170, type: 'farm' },
+          { x: 760, y: 720, w: 220, h: 180, type: 'house' },
+          { x: 1140, y: 820, w: 220, h: 150, type: 'warehouse' },
+          { x: 320, y: 1180, w: 220, h: 140, type: 'storage' },
+          { x: 820, y: 1150, w: 220, h: 160, type: 'house' },
+          { x: 1240, y: 1180, w: 220, h: 150, type: 'church' },
+          { x: 1200, y: 1480, w: 260, h: 150, type: 'watchtower' },
+          { x: 600, y: 1500, w: 200, h: 180, type: 'barn' },
+          { x: 1620, y: 1280, w: 180, h: 200, type: 'gate' },
+        ];
+
+        state.items = [
+          { x: 470, y: 620, type: 'ammo', amount: 12 },
+          { x: 1030, y: 1030, type: 'medkit', amount: 25 },
+          { x: 1460, y: 720, type: 'armor', amount: 25 },
+          { x: 600, y: 1260, type: 'ammo', amount: 10 },
+          { x: 1370, y: 1540, type: 'medkit', amount: 18 },
+        ];
+
+        state.zombies = [];
+        for (let i = 0; i < Math.min(8 + levelNum * 1.5, 28); i++) {
+          const p = positions[(i + levelNum) % positions.length];
+          const types = ['basic', 'runner', 'tank', 'hunter', 'screamer', 'armored'];
+          const type = types[(i + levelNum) % types.length];
+          state.zombies.push(createZombie(type, p.x, p.y, levelNum));
+        }
+
+        state.mission = {
+          objective: `Eliminate ${state.enemyGoal} infected survivors`,
+          requiredKills: state.enemyGoal,
+          kills: 0,
+          key: false,
+          exitOpen: false,
+        };
+
+        objectiveText.textContent = state.mission.objective;
+        state.player.x = 520; state.player.y = 1040;
+        state.player.health = state.player.maxHealth;
+        state.player.armor = state.player.maxArmor;
+        state.player.stamina = state.player.maxStamina;
+        state.player.fireCooldown = 0;
+        state.player.reloadTimer = 0;
+        state.player.abilityCharge = 0;
+        state.player.powerReady = true;
+
+        keyStatus.textContent = 'NOT FOUND';
+        exitStatus.textContent = 'LOCKED';
+        updateHud();
+      }
+
+      function createZombie(type, x, y, levelNum) {
+        const defs = {
+          basic: { speed: 36, health: 40 + levelNum * 3, damage: 6, radius: 16, color: '#9ac78d' },
+          runner: { speed: 65, health: 26 + levelNum * 2, damage: 9, radius: 15, color: '#d4b66d' },
+          tank: { speed: 26, health: 100 + levelNum * 8, damage: 18, radius: 22, color: '#a7a4d7' },
+          hunter: { speed: 50, health: 52 + levelNum * 4, damage: 12, radius: 18, color: '#cf7e7b' },
+          screamer: { speed: 38, health: 38 + levelNum * 3, damage: 8, radius: 17, color: '#d3d971' },
+          armored: { speed: 32, health: 72 + levelNum * 6, damage: 11, radius: 18, color: '#6696d5' },
+        };
+        const d = defs[type] || defs.basic;
+        return {
+          x, y, type, radius: d.radius, speed: d.speed, health: d.health, maxHealth: d.health,
+          damage: d.damage, color: d.color, active: true, alert: 0, state: 'patrol',
+          attackCooldown: 0, direction: rand(0, Math.PI * 2), wander: rand(0, 100)
+        };
+      }
+
+      function restartGame() {
+        state.player = createPlayer();
+        loadSave();
+        if (!state.unlockedChars.includes(state.selectedChar)) {
+          state.selectedChar = 'survivor';
+        }
+        state.player = createPlayer();
+        createDynamicLevel(state.currentLevel);
+      }
+
+      function beginGame() {
+        loadSave();
+        state.player = createPlayer();
+        createDynamicLevel(state.currentLevel);
+        menuScreen.classList.add('hidden');
+        charScreen.classList.add('hidden');
+        tutorialScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        victoryScreen.classList.add('hidden');
+        hud.classList.remove('hidden');
+        state.running = true;
+      }
+
+      function nextLevel() {
+        state.currentLevel += 1;
+        state.player = createPlayer();
+        createDynamicLevel(state.currentLevel);
+        saveGame();
+      }
+
+      function updateHud() {
+        const p = state.player;
+        if (!p) return;
+        const healthPct = (p.health / p.maxHealth) * 100;
+        const armorPct = (p.armor / p.maxArmor) * 100;
+        const staminaPct = (p.stamina / p.maxStamina) * 100;
+        healthBar.style.width = healthPct + '%';
+        armorBar.style.width = armorPct + '%';
+        staminaBar.style.width = staminaPct + '%';
+        levelText.textContent = String(state.currentLevel).padStart(2, '0');
+        xpText.textContent = String(state.xp);
+        objectiveText.textContent = state.mission ? state.mission.objective : 'Explore village';
+
+        const weapon = weaponDefs[p.weaponIndex % weaponDefs.length];
+        const mag = p.weaponAmmo[p.weaponIndex] ?? 0;
+        const reserve = p.reserveAmmo[p.weaponIndex] ?? 0;
+        ammoStatus.textContent = `${mag} / ${reserve}`;
+        powerStatus.textContent = p.powerReady ? 'READY' : 'COOLING';
+        keyStatus.textContent = state.keyFound ? 'FOUND' : 'NOT FOUND';
+        exitStatus.textContent = state.exit.locked ? 'LOCKED' : 'OPEN';
+      }
+
+      function addXp(amount) {
+        state.xp += amount;
+        saveGame();
+        updateHud();
+      }
+
+      function handleLevelWin() {
+        const totalKills = state.levelStats.kills;
+        state.levelComplete = true;
+        victoryStats.textContent = `Objectives cleared | Zombies defeated: ${totalKills} | XP earned: ${40 + state.currentLevel * 10} | Key found: ${state.keyFound ? 'Yes' : 'No'}`;
+        hud.classList.add('hidden');
+        victoryScreen.classList.remove('hidden');
+        addXp(40 + state.currentLevel * 10);
+      }
+
+      function handleGameOver() {
+        if (state.gameOver) return;
+        state.gameOver = true;
+        hud.classList.add('hidden');
+        gameOverStats.textContent = `Level ${state.currentLevel} | Zombies Defeated ${state.levelStats.kills} | XP ${state.xp}`;
+        gameOverScreen.classList.remove('hidden');
+      }
+
+      function updatePlayer(dt) {
+        const p = state.player;
+        if (!p || !state.running || !p.alive) return;
+
+        let moveX = 0;
+        let moveY = 0;
+        const j = state.joystick;
+        if (j.active) {
+          moveX = j.x;
+          moveY = j.y;
+        } else {
+          if (state.input.left) moveX -= 1;
+          if (state.input.right) moveX += 1;
+          if (state.input.forward) moveY -= 1;
+          if (state.input.backward) moveY += 1;
+        }
+
+        const mag = Math.hypot(moveX, moveY) || 1;
+        moveX /= mag; moveY /= mag;
+
+        const speed = p.speed * (p.stamina > 10 ? 1 : 0.55);
+        if (moveX || moveY) {
+          p.x += moveX * speed * dt;
+          p.y += moveY * speed * dt;
+          p.facing = Math.atan2(moveY, moveX);
+          if (p.stamina > 0 && !state.input.aim) {
+            p.stamina = Math.max(0, p.stamina - 20 * dt);
+          }
+        } else {
+          p.stamina = Math.min(p.maxStamina, p.stamina + 14 * dt);
+        }
+
+        p.x = clamp(p.x, 40, state.world.width - 40);
+        p.y = clamp(p.y, 40, state.world.height - 40);
+
+        if (p.aimDir !== undefined) {
+          p.facing = p.aimDir;
+        }
+
+        if (p.reloadTimer > 0) {
+          p.reloadTimer -= dt;
+          if (p.reloadTimer <= 0) {
+            const weapon = weaponDefs[p.weaponIndex];
+            const magNeed = weapon.bullets - p.weaponAmmo[p.weaponIndex];
+            const ammoTake = Math.min(magNeed, p.reserveAmmo[p.weaponIndex]);
+            p.weaponAmmo[p.weaponIndex] += ammoTake;
+            p.reserveAmmo[p.weaponIndex] -= ammoTake;
+          }
+        }
+
+        p.fireCooldown = Math.max(0, p.fireCooldown - dt);
+        p.invuln = Math.max(0, p.invuln - dt);
+
+        if (p.health <= 0) {
+          p.alive = false;
+          handleGameOver();
+        }
+
+        const activeWeapon = weaponDefs[p.weaponIndex];
+        if (state.input.fireHeld && p.fireCooldown <= 0 && p.reloadTimer <= 0 && p.weaponAmmo[p.weaponIndex] > 0) {
+          fireWeapon(activeWeapon, p);
+          p.fireCooldown = activeWeapon.fireRate;
+          p.weaponAmmo[p.weaponIndex]--;
+        }
+
+        if (p.weaponAmmo[p.weaponIndex] === 0 && p.reserveAmmo[p.weaponIndex] > 0 && !state.input.fireHeld) {
+          startReload();
+        }
+
+        if (state.input.aim) {
+          p.aimDir = Math.atan2((canvas.height * 0.5) - 0, (canvas.width * 0.5) - 0);
+        }
+
+        const keyDist = dist(p, state.keyLocation || { x: p.x, y: p.y });
+        if (state.keyLocation && keyDist < 35 && !state.keyFound) {
+          state.keyFound = true;
+          p.keyCount += 1;
+          keyStatus.textContent = 'FOUND';
+          interactionPrompt.classList.add('hidden');
+        }
+
+        if (dist(p, state.exit) < 60) {
+          state.nearInteractable = 'door';
+          interactionPrompt.textContent = state.keyFound ? 'INTERACT TO ESCAPE' : 'NEED KEY';
+          interactionPrompt.classList.remove('hidden');
+        } else if (state.keyLocation && keyDist < 45 && !state.keyFound) {
+          state.nearInteractable = 'key';
+          interactionPrompt.textContent = 'INTERACT TO PICK UP KEY';
+          interactionPrompt.classList.remove('hidden');
+        } else {
+          state.nearInteractable = null;
+          interactionPrompt.classList.add('hidden');
+        }
+
+        if (state.mission && state.mission.kills >= state.mission.requiredKills && state.keyFound) {
+          state.exit.locked = false;
+          exitStatus.textContent = 'OPEN';
+        }
+
+        if (state.exit.locked === false && dist(p, state.exit) < 65 && state.keyFound) {
+          handleLevelWin();
+        }
+      }
+
+      function fireWeapon(weapon, p) {
+        const angle = p.facing;
+        const spread = (Math.random() - 0.5) * weapon.spread;
+        const a = angle + spread;
+        state.bullets.push({
+          x: p.x + Math.cos(a) * 18,
+          y: p.y + Math.sin(a) * 18,
+          dx: Math.cos(a) * weapon.range,
+          dy: Math.sin(a) * weapon.range,
+          damage: weapon.damage + p.damageBoost,
+          life: 0.8,
+          radius: 3,
+          color: '#f9d87f',
+        });
+
+        for (let i = 0; i < 2; i++) {
+          state.particles.push({ x: p.x, y: p.y, r: 7, vx: rand(-90,90), vy: rand(-90,90), life: 0.18, color: 'rgba(255,180,80,0.8)' });
+        }
+      }
+
+      function startReload() {
+        const p = state.player;
+        if (!p || p.reloadTimer > 0) return;
+        const weapon = weaponDefs[p.weaponIndex];
+        if (p.weaponAmmo[p.weaponIndex] < weapon.bullets && p.reserveAmmo[p.weaponIndex] > 0) {
+          p.reloadTimer = weapon.reload + p.reloadBonus;
+        }
+      }
+
+      function handleInputActions() {
+        const p = state.player;
+        if (!p) return;
+
+        document.getElementById('fireBtn').addEventListener('pointerdown', () => {
+          state.input.fireHeld = true;
+        });
+        document.getElementById('fireBtn').addEventListener('pointerup', () => {
+          state.input.fireHeld = false;
+        });
+        document.getElementById('fireBtn').addEventListener('pointerleave', () => {
+          state.input.fireHeld = false;
+        });
+
+        document.getElementById('reloadBtn').addEventListener('click', startReload);
+        document.getElementById('switchBtn').addEventListener('click', () => {
+          p.weaponIndex = (p.weaponIndex + 1) % weaponDefs.length;
+          updateHud();
+        });
+        document.getElementById('aimBtn').addEventListener('pointerdown', () => { state.input.aim = true; });
+        document.getElementById('aimBtn').addEventListener('pointerup', () => { state.input.aim = false; });
+        document.getElementById('jumpBtn').addEventListener('click', () => {
+          p.y -= 12;
+        });
+        document.getElementById('crouchBtn').addEventListener('click', () => { p.speed *= 0.9; });
+        document.getElementById('powerBtn').addEventListener('click', () => {
+          if (p.powerReady) {
+            p.health = Math.min(p.maxHealth + 8, p.health + 20);
+            p.armor = Math.min(p.maxArmor, p.armor + 20);
+            p.powerReady = false;
+            powerStatus.textContent = 'COOLING';
+            setTimeout(() => {
+              if (state.player) {
+                state.player.powerReady = true;
+                powerStatus.textContent = 'READY';
+              }
+            }, 6000);
+          }
+        });
+
+        document.getElementById('interactBtn').addEventListener('click', () => {
+          if (state.nearInteractable === 'door' && state.keyFound) {
+            state.exit.locked = false;
+            exitStatus.textContent = 'OPEN';
+            state.mission.exitOpen = true;
+          }
+          if (state.nearInteractable === 'key' && !state.keyFound) {
+            state.keyFound = true;
+            keyStatus.textContent = 'FOUND';
+          }
+        });
+      }
+
+      function updateBullets(dt) {
+        for (let i = state.bullets.length - 1; i >= 0; i--) {
+          const bullet = state.bullets[i];
+          bullet.x += bullet.dx * dt * 0.25;
+          bullet.y += bullet.dy * dt * 0.25;
+          bullet.life -= dt;
+          if (bullet.life <= 0) {
+            state.bullets.splice(i, 1);
+            continue;
+          }
+
+          for (let j = state.zombies.length - 1; j >= 0; j--) {
+            const z = state.zombies[j];
+            if (!z.active) continue;
+            if (dist({ x: bullet.x, y: bullet.y }, z) < z.radius + bullet.radius) {
+              z.health -= bullet.damage;
+              state.bullets.splice(i, 1);
+              for (let p = 0; p < 6; p++) {
+                state.particles.push({ x: bullet.x, y: bullet.y, r: 4, vx: rand(-80,80), vy: rand(-80,80), life: 0.3, color: 'rgba(255,255,255,0.7)' });
+              }
+              if (z.health <= 0) {
+                z.active = false;
+                state.mission.kills += 1;
+                state.levelStats.kills += 1;
+                state.player.kills += 1;
+                addXp(10);
+                state.zombies.splice(j, 1);
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      function updateZombies(dt) {
+        const p = state.player;
+        if (!p) return;
+        for (let i = state.zombies.length - 1; i >= 0; i--) {
+          const z = state.zombies[i];
+          if (!z.active) continue;
+          const dx = p.x - z.x;
+          const dy = p.y - z.y;
+          const distance = Math.hypot(dx, dy) || 1;
+
+          if (distance < 500 && (z.type === 'hunter' || z.type === 'screamer' || z.type === 'basic')) {
+            z.state = 'chase';
+            z.alert = 5;
+          } else if (distance < 150) {
+            z.state = 'chase';
+          }
+
+          if (z.state === 'chase') {
+            const nx = dx / distance; const ny = dy / distance;
+            z.x += nx * z.speed * dt;
+            z.y += ny * z.speed * dt;
+          } else {
+            z.x += Math.cos(z.direction) * 12 * dt;
+            z.y += Math.sin(z.direction) * 12 * dt;
+            z.wander -= dt;
+            if (z.wander <= 0) {
+              z.direction = rand(0, Math.PI * 2);
+              z.wander = rand(1.5, 5.5);
+            }
+          }
+
+          if (distance < z.radius + p.radius + 8) {
+            z.attackCooldown -= dt;
+            if (z.attackCooldown <= 0) {
+              let damage = z.damage;
+              if (p.armor > 0) {
+                const armorBlocked = Math.min(p.armor, damage * 0.6);
+                p.armor -= armorBlocked;
+                damage -= armorBlocked;
+              }
+              p.health -= damage;
+              p.invuln = 0.3;
+              z.attackCooldown = 0.9;
+              state.particles.push({ x: p.x, y: p.y, r: 16, vx: rand(-40,40), vy: rand(-40,40), life: 0.35, color: 'rgba(255,80,80,0.8)' });
+            }
+          }
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const p = state.particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.life <= 0) state.particles.splice(i, 1);
+        }
+      }
+
+      function updateCamera(dt) {
+        const p = state.player;
+        if (!p) return;
+        const targetX = p.x;
+        const targetY = p.y;
+        state.camera.x += (targetX - state.camera.x) * 0.12;
+        state.camera.y += (targetY - state.camera.y) * 0.12;
+      }
+
+      function drawBackground() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, '#07111d');
+        gradient.addColorStop(0.45, '#091821');
+        gradient.addColorStop(1, '#040b12');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+
+        const moonX = w * 0.8;
+        const moonY = h * 0.18;
+        ctx.fillStyle = 'rgba(230,236,255,0.9)';
+        ctx.beginPath(); ctx.arc(moonX, moonY, 34, 0, Math.PI * 2); ctx.fill();
+
+        for (let i = 0; i < 22; i++) {
+          const x = (i * 97 + 50) % w;
+          const y = (i * 61 + 100) % (h * 0.55);
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.fillRect(x, y, 2, 2);
+        }
+      }
+
+      function drawWorld() {
+        const p = state.player;
+        if (!p) return;
+        ctx.save();
+        ctx.translate(canvas.width / 2 - state.camera.x, canvas.height / 2 - state.camera.y);
+
+        ctx.fillStyle = '#0d171a';
+        ctx.fillRect(0, 0, state.world.width, state.world.height);
+
+        for (let x = 0; x < state.world.width; x += 100) {
+          for (let y = 0; y < state.world.height; y += 100) {
+            ctx.fillStyle = (x + y) % 200 === 0 ? '#0d1e22' : '#101f24';
+            ctx.fillRect(x, y, 100, 100);
+          }
+        }
+
+        for (const obj of state.obstacles) {
+          ctx.fillStyle = '#3d3d3d';
+          ctx.fillRect(obj.x - obj.w / 2, obj.y - obj.h / 2, obj.w, obj.h);
+          ctx.fillStyle = 'rgba(0,0,0,0.2)';
+          ctx.fillRect(obj.x - obj.w / 2, obj.y - obj.h / 2, obj.w, 12);
+          ctx.fillStyle = 'rgba(190, 190, 190, 0.1)';
+          ctx.fillRect(obj.x - obj.w / 2 + 12, obj.y - obj.h / 2 + 20, obj.w - 24, obj.h - 28);
+        }
+
+        for (const item of state.items) {
+          ctx.fillStyle = '#f0c95c';
+          ctx.beginPath(); ctx.arc(item.x, item.y, 8, 0, Math.PI * 2); ctx.fill();
+          if (item.type === 'medkit') ctx.fillStyle = '#c65353';
+          if (item.type === 'armor') ctx.fillStyle = '#6dc7ff';
+          if (item.type === 'ammo') ctx.fillStyle = '#d9c24d';
+          ctx.beginPath(); ctx.arc(item.x, item.y, 9, 0, Math.PI * 2); ctx.fill();
+        }
+
+        if (state.keyLocation && !state.keyFound) {
+          ctx.fillStyle = '#d8d9af';
+          ctx.beginPath(); ctx.arc(state.keyLocation.x, state.keyLocation.y, 8, 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.fillStyle = '#3f4d62';
+        ctx.beginPath(); ctx.arc(state.exit.x, state.exit.y, 34, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = state.exit.locked ? '#7d2525' : '#1a8f52';
+        ctx.fillRect(state.exit.x - 18, state.exit.y - 30, 36, 60);
+
+        for (const z of state.zombies) {
+          if (!z.active) continue;
+          ctx.fillStyle = z.color;
+          ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(0,0,0,0.28)';
+          ctx.fillRect(z.x - 18, z.y - z.radius - 10, 36, 5);
+          ctx.fillStyle = '#ff8d8d';
+          ctx.fillRect(z.x - 18, z.y - z.radius - 10, 36 * (z.health / z.maxHealth), 5);
+        }
+
+        ctx.fillStyle = '#d7ebff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#dfeeff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + Math.cos(p.facing) * 28, p.y + Math.sin(p.facing) * 28);
+        ctx.stroke();
+
+        for (const bullet of state.bullets) {
+          ctx.fillStyle = bullet.color;
+          ctx.beginPath(); ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2); ctx.fill();
+        }
+
+        for (const particle of state.particles) {
+          ctx.fillStyle = particle.color;
+          ctx.beginPath(); ctx.arc(particle.x, particle.y, particle.r, 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      function drawFog() {
+        const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 140, canvas.width / 2, canvas.height / 2, 650);
+        gradient.addColorStop(0, 'rgba(0,0,0,0)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0.55)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      function loop(ts) {
+        const dt = Math.min(0.033, (ts - (state.lastTime || ts)) / 1000 || 0.016);
+        state.lastTime = ts;
+
+        if (state.running && !state.gameOver && !state.levelComplete) {
+          updatePlayer(dt);
+          updateBullets(dt);
+          updateZombies(dt);
+          updateParticles(dt);
+          updateCamera(dt);
+          updateHud();
+        }
+
+        drawBackground();
+        drawWorld();
+        drawFog();
+
+        requestAnimationFrame(loop);
+      }
+
+      function updateJoystick(clientX, clientY) {
+        const rect = joystickBase.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = clientX - centerX;
+        const dy = clientY - centerY;
+        const limit = 42;
+        const len = Math.hypot(dx, dy);
+        const clamped = Math.min(len, limit);
+        const angle = Math.atan2(dy, dx);
+        const nx = Math.cos(angle) * clamped;
+        const ny = Math.sin(angle) * clamped;
+        state.joystick.x = nx / limit;
+        state.joystick.y = ny / limit;
+        state.joystick.active = true;
+        joystickStick.style.transform = `translate(${nx - 27}px, ${ny - 27}px)`;
+
+        if (Math.abs(nx) > 1) state.joystick.x = nx / limit;
+        if (Math.abs(ny) > 1) state.joystick.y = ny / limit;
+
+        const da = Math.atan2(state.joystick.y, state.joystick.x);
+        if (Math.abs(da) > 0.01) {
+          state.player.facing = da;
+        }
+      }
+
+      function resetJoystick() {
+        state.joystick.active = false;
+        state.joystick.x = 0;
+        state.joystick.y = 0;
+        joystickStick.style.transform = 'translate(-50%, -50%)';
+      }
+
+      joystickBase.addEventListener('pointerdown', (e) => {
+        updateJoystick(e.clientX, e.clientY);
+      });
+      joystickBase.addEventListener('pointermove', (e) => {
+        if (state.joystick.active) updateJoystick(e.clientX, e.clientY);
+      });
+      joystickBase.addEventListener('pointerup', resetJoystick);
+      joystickBase.addEventListener('pointerleave', resetJoystick);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') state.input.forward = true;
+        if (e.key === 's' || e.key === 'ArrowDown') state.input.backward = true;
+        if (e.key === 'a' || e.key === 'ArrowLeft') state.input.left = true;
+        if (e.key === 'd' || e.key === 'ArrowRight') state.input.right = true;
+        if (e.key === ' ') state.input.fireHeld = true;
+        if (e.key === 'r') startReload();
+      });
+
+      document.addEventListener('keyup', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') state.input.forward = false;
+        if (e.key === 's' || e.key === 'ArrowDown') state.input.backward = false;
+        if (e.key === 'a' || e.key === 'ArrowLeft') state.input.left = false;
+        if (e.key === 'd' || e.key === 'ArrowRight') state.input.right = false;
+        if (e.key === ' ') state.input.fireHeld = false;
+      });
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      startBtn.addEventListener('click', () => {
+        state.currentLevel = 1;
+        beginGame();
+      });
+      continueBtn.addEventListener('click', () => {
+        loadSave();
+        beginGame();
+      });
+      charsBtn.addEventListener('click', () => {
+        menuScreen.classList.add('hidden');
+        charScreen.classList.remove('hidden');
+        buildCharacterGrid();
+      });
+      tutorialBtn.addEventListener('click', () => {
+        menuScreen.classList.add('hidden');
+        tutorialScreen.classList.remove('hidden');
+      });
+      closeCharsBtn.addEventListener('click', () => {
+        charScreen.classList.add('hidden');
+        menuScreen.classList.remove('hidden');
+      });
+      closeTutorialBtn.addEventListener('click', () => {
+        tutorialScreen.classList.add('hidden');
+        menuScreen.classList.remove('hidden');
+      });
+      retryBtn.addEventListener('click', () => {
+        gameOverScreen.classList.add('hidden');
+        state.currentLevel = Math.max(1, state.currentLevel);
+        state.player = createPlayer();
+        createDynamicLevel(state.currentLevel);
+        hud.classList.remove('hidden');
+        state.running = true;
+      });
+      mainMenuBtn.addEventListener('click', () => {
+        gameOverScreen.classList.add('hidden');
+        menuScreen.classList.remove('hidden');
+        state.running = false;
+      });
+      nextLevelBtn.addEventListener('click', () => {
+        victoryScreen.classList.add('hidden');
+        nextLevel();
+        hud.classList.remove('hidden');
+      });
+
+      handleInputActions();
+      loadSave();
+      buildCharacterGrid();
+      state.player = createPlayer();
+      createDynamicLevel(1);
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
